@@ -1,0 +1,57 @@
+This challenge can be found at https://challenges.re/1/.
+
+Our task is to reverse engineer a function f, which has 4 arguments, compiled
+by GCC for Linux x64 ABI. Thus, we need to follow the corresponding function
+call convention, i.e., the arguments are passed by RDI,RSI,RDX,RCX,R8,R9,etc.,
+respectively. Let us represent f as f(arg1, arg2, arg3, arg4).
+
+Let us find what the code does:
+
+<f>:
+	0:	mov r8,rdi		# r8 = arg1
+	3:	push rbx		# rbx saved on top of the stack
+	4:	mov rdi,rsi		# rdi = arg2
+	7:	mov rbx,rdx		# rbx = arg3
+	a:	mov rsi,r8		# rsi = arg1
+	d:	xor rdx,rdx		# rdx = 0
+
+begin:
+	10:	lods rax,QWORD PTR ds:[rsi]		# rax = [ds:[arg1]], arg1 += 4
+	12: div rbx			# rdx:rax divided by arg3, rax = quotient, rdx = remainder
+	15: stos QWORD PTR es:[rdi],rax		# store rax in [es:[arg2]], arg2 += 4
+	17: loop begin		# rcx -= 1, loop until rcx = 0 (note that rcx = arg4)
+	19: pop rbx			# restore old rbx
+	1a: mov rax,rdx		# rax = rdx
+	1d: ret				# return rax as the output of f
+
+As seen, until "begin", we initialize some variables, and do the actual work
+in the loop. Thus, the interesting part is there. In "begin", <f> loads
+a value in memory, pointed through our arg1. Then, it divides this value by
+arg3, and stores the quotient in a memory location pointed through our arg2.
+This loop iterates rcx = arg4 times. After the loop terminates, <f> returns
+the final remainder.
+
+However, it doesn't seem clear at the first glance what those memory addresses
+present. Recalling the semantics of x86_64, the instructions "lods" and "stos"
+are mostly used in array operations. Moreover, we use arg1 to load consecutive
+memory locations, and arg2 to store something in memory; hence arg1 and arg2
+look like a pointer to some array.
+
+These observations tell us that <f> might be dividing a very big integer arg1
+by arg3, storing the quotient in arg2, returning the remainder as its output 
+(and arg4 is used to pass the size of the big integer). So:
+
+	arg1 --> a pointer to a Big Integer dividend
+	arg2 --> a pointer to hold the quotient Big Integer (arg2 = arg1 / arg3)
+	arg3 --> divisor (a 64-bit integer)
+	arg4 --> size of arg1 in terms of QWORDs
+
+	f(arg1,arg2,arg3,arg4) = arg1 % arg3 (%: modulo operation)
+
+Here, Big Integer means an integer which is larger than 2^64-1; so that it
+doesn't fit into 64-bits. To be able to deal with these kind of big integers,
+we need to represent them specially like an array of QWORDs.
+
+One may question the practicality of such integers, but it is very common to
+see them especially in cryptographical applications, and scientific calculations.
+Thus, this program represented here is not nonsense.
