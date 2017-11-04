@@ -16,12 +16,12 @@ Let us find what the code does:
 	d:	xor rdx,rdx		# rdx = 0
 
 begin:
-	10:	lods rax,QWORD PTR ds:[rsi]		# rax = [ds:[arg1]], arg1 += 4
+	10:	lods rax,QWORD PTR ds:[rsi]	# rax = [ds:[arg1]], arg1 += 4
 	12: div rbx			# rdx:rax divided by arg3, rax = quotient, rdx = remainder
 	15: stos QWORD PTR es:[rdi],rax		# store rax in [es:[arg2]], arg2 += 4
-	17: loop begin		# rcx -= 1, loop until rcx = 0 (note that rcx = arg4)
+	17: loop begin		        # rcx -= 1, loop until rcx = 0 (note that rcx = arg4)
 	19: pop rbx			# restore old rbx
-	1a: mov rax,rdx		# rax = rdx
+	1a: mov rax,rdx		        # rax = rdx
 	1d: ret				# return rax as the output of f
 
 As seen, until "begin", we initialize some variables, and do the actual work
